@@ -227,9 +227,9 @@ layer_icons = {
 
 
 feature_columns = [
-    "D_nearest_police", "D_nearest_fire", "D_nearest_hospital",
+    "Attractiveness",
     "Defense_Posture", "Population_Density", "Average_Ridership",
-    "Crime_Index", "Threat_Level","Attractiveness"
+    "Crime_Index", "Threat_Level","D_nearest_police", "D_nearest_fire", "D_nearest_hospital"
 ]
 
 # Define categorical colors
@@ -317,9 +317,9 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
     is_categorical = selected_feature in ["Defense_Posture", "Threat_Level"]
 
     if not is_categorical:
-        # min_val, max_val = merged_df[selected_feature].min(), merged_df[selected_feature].max()
-        min_val = global_feature_min[selected_feature]
-        max_val = global_feature_max[selected_feature]
+        min_val, max_val = merged_df[selected_feature].min(), merged_df[selected_feature].max()
+        # min_val = global_feature_min[selected_feature]
+        # max_val = global_feature_max[selected_feature]
 
 
         median_val = merged_df[selected_feature].median()
@@ -384,12 +384,22 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
                 node_radius = 3  # Smaller size for non-top K nodes
                 node_color = "#B0B0B0"  # Grey for non-top K nodes
 
+        # Define a dictionary to specify custom labels for specific fields
+        custom_labels = {
+            "D_nearest_police": "Distance from nearest police station (KM)",
+            "D_nearest_fire": "Distance from nearest fire station (KM)",
+            "D_nearest_hospital": "Distance from nearest hospital (KM)"
+        }
+
         tooltip_content = "<br>".join([
-            f"{additional_fields.get(feat, feat).ljust(len(longest_label))}: {round(row[feat], 2) if isinstance(row[feat], float) else row[feat]}"
-            for feat in display_features])
+            f"{custom_labels.get(feat, feat.replace('_', ' ').capitalize())}: {round(row[feat], 2) if isinstance(row[feat], float) else row[feat]}"
+            for feat in display_features
+        ])
+
         popup_content = "<br>".join([
-            f"{additional_fields.get(feat, feat).ljust(len(longest_label))}: {round(row[feat], 2) if isinstance(row[feat], float) else row[feat]}"
-            for feat in display_features])
+            f"{custom_labels.get(feat, feat.replace('_', ' ').capitalize())}: {round(row[feat], 2) if isinstance(row[feat], float) else row[feat]}"
+            for feat in display_features
+        ])
 
         folium.CircleMarker(
             location=[lat, lon],
@@ -400,7 +410,6 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
             fill_opacity=1.0,
             tooltip=f"Station Features:<br>{tooltip_content}",
             popup=folium.Popup(f"Station: {station_name}<br>{popup_content}", max_width=250)
-
         ).add_to(mbta_map)
 
 
@@ -555,3 +564,80 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
     map_path = os.path.join(output_folder, f"mbta_threat_{time_of_day}_{selected_feature}_top{top_k}.html")
     mbta_map.save(map_path)
     return map_path
+
+
+def generate_attractiveness_map(time_of_day):
+    csv_file = f"Feature_Label_with_Names_{time_of_day}.csv"
+    file_path = os.path.join("page_3_threat_features/Feature_Label_with_Names_2025.02.24", csv_file)
+
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        return None
+
+    # Load the selected CSV file
+    feature_df = pd.read_csv(file_path)
+
+    center_lat = feature_df['Lat'].mean()
+    center_lon = feature_df['Lon'].mean()
+    mbta_map = folium.Map(location=[center_lat, center_lon], zoom_start=12, tiles='CartoDB positron')
+
+    # Define the colormap for Attractiveness
+    min_val = feature_df["Attractiveness"].min()
+    max_val = feature_df["Attractiveness"].max()
+    median_val = feature_df["Attractiveness"].median()
+    colormap = cm.LinearColormap(["green", "yellow", "red"], vmin=min_val, vmax=max_val)
+
+    # ✅ **Retained Edge Structure**
+    edge_width = 1.5  # Keep edges thinner but visible
+    for _, row in edges_df.iterrows():
+        source_id, target_id = row['Source'], row['Target']
+        line = row['Line']
+
+        source_pos = [G.nodes[source_id]['pos'][0], G.nodes[source_id]['pos'][1]]
+        target_pos = [G.nodes[target_id]['pos'][0], G.nodes[target_id]['pos'][1]]
+
+        line_color = color_mapping.get(line, 'gray')  # Same color scheme as before
+
+        folium.PolyLine(
+            [source_pos, target_pos],
+            color=line_color,
+            weight=edge_width,
+            opacity=0.8
+        ).add_to(mbta_map)
+
+    # ✅ **Add Nodes (Stations) for Attractiveness**
+    for _, row in feature_df.iterrows():
+        station_id = row['ID']
+        station_name = row["Station_Name"]
+        lat, lon = row["Lat"], row["Lon"]
+        attractiveness_score = row["Attractiveness"]
+
+        folium.CircleMarker(
+            location=[lat, lon],
+            radius=5,  # Fixed size for all nodes
+            color=colormap(attractiveness_score),
+            fill=True,
+            fill_color=colormap(attractiveness_score),
+            fill_opacity=1.0,
+            tooltip=f"Station: {station_name}<br>Attractiveness: {attractiveness_score:.2f}"
+        ).add_to(mbta_map)
+
+    # ✅ **Add Color Bar**
+    legend_html = f"""
+    <div style="position: fixed; bottom: 50px; left: 50px; width: 40px; height: 180px; background-color: rgba(255, 255, 255, 0.8); z-index:9999; font-size:12px; border: none; padding: 10px;">
+        <div style="height: 170px; width: 20px; background: linear-gradient(to top, green, yellow, red);"></div>
+        <div style="position: absolute; bottom: 0; left: 35px;">{min_val:.2f}</div>
+        <div style="position: absolute; top: 50%; left: 35px;">{median_val:.2f}</div>
+        <div style="position: absolute; top: 0; left: 35px;">{max_val:.2f}</div>
+    </div>
+    """
+    mbta_map.get_root().html.add_child(folium.Element(legend_html))
+
+    # ✅ **Save the Final Map**
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+    map_path = os.path.join(output_folder, f"mbta_attractiveness_{time_of_day}.html")
+    mbta_map.save(map_path)
+
+    return map_path
+
