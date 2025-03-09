@@ -201,7 +201,7 @@ def generate_mbta_map_with_centrality(selected_centrality="No Centrality", top_k
 
 
 # Define folder paths
-threat_folder = "page_3_threat_features/Feature_Label_with_Names_2025.02.24"
+threat_folder = "page_3_threat_features/Feature_Label"
 layer_folder = "page_3_threat_features/Layer_Information"
 
 # Layer CSVs
@@ -292,7 +292,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
     Highlights the top K nodes based on the selected feature.
     Optionally adds external layers like police, fire, hospital locations and a HeatMap for crime data.
     """
-    csv_file = f"Feature_Label_with_Names_{time_of_day}.csv"
+    csv_file = f"Feature_Label_{time_of_day}.csv"
     file_path = os.path.join(threat_folder, csv_file)
 
     if not os.path.exists(file_path):
@@ -386,9 +386,9 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
         # Define a dictionary to specify custom labels for specific fields
         custom_labels = {
-            "D_nearest_police": "Distance from nearest police station (KM)",
-            "D_nearest_fire": "Distance from nearest fire station (KM)",
-            "D_nearest_hospital": "Distance from nearest hospital (KM)"
+            "D_nearest_police": "Distance from nearest police station",
+            "D_nearest_fire": "Distance from nearest fire station ",
+            "D_nearest_hospital": "Distance from nearest hospital "
         }
 
         tooltip_content = "<br>".join([
@@ -463,7 +463,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
     # ✅ **Add Crime HeatMap if enabled**
     if show_heatmap:
-        crime_file = f"Boston_crime_filtered_{time_of_day}.csv"
+        crime_file = f"Boston_Cambridge_Brookline_crime_filtered_{time_of_day}.csv"
         crime_path = os.path.join(crime_folder, crime_file)
 
         if os.path.exists(crime_path):
@@ -566,9 +566,11 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
     return map_path
 
 
+temp_folder="page_3_threat_features/temp_playground"
+
 def generate_attractiveness_map(time_of_day):
-    csv_file = f"Feature_Label_with_Names_{time_of_day}.csv"
-    file_path = os.path.join("page_3_threat_features/Feature_Label_with_Names_2025.02.24", csv_file)
+    csv_file = f"Feature_Label_{time_of_day}.csv"
+    file_path = os.path.join(temp_folder, csv_file)
 
     if not os.path.exists(file_path):
         print(f"File not found: {file_path}")
@@ -611,6 +613,8 @@ def generate_attractiveness_map(time_of_day):
         station_name = row["Station_Name"]
         lat, lon = row["Lat"], row["Lon"]
         attractiveness_score = row["Attractiveness"]
+        threat_level = row["Threat_Level"]
+        defense_posture = row["Defense_Posture"]
 
         folium.CircleMarker(
             location=[lat, lon],
@@ -619,7 +623,16 @@ def generate_attractiveness_map(time_of_day):
             fill=True,
             fill_color=colormap(attractiveness_score),
             fill_opacity=1.0,
-            tooltip=f"Station: {station_name}<br>Attractiveness: {attractiveness_score:.2f}"
+            tooltip=f"Station: {station_name}<br>"
+                    f"Attractiveness: {attractiveness_score:.2f}<br>"
+                    "<br> Additional info: <br>"
+                    f"Threat Level: {threat_level}<br>"
+                    f"Defense Posture: {defense_posture}",
+            popup=f"Station: {station_name}<br>"
+                    f"Attractiveness: {attractiveness_score:.2f}<br>"
+                    "<br> Additional info: <br>"
+                    f"Threat Level: {threat_level}<br>"
+                    f"Defense Posture: {defense_posture}"
         ).add_to(mbta_map)
 
     # ✅ **Add Color Bar**
@@ -632,6 +645,22 @@ def generate_attractiveness_map(time_of_day):
     </div>
     """
     mbta_map.get_root().html.add_child(folium.Element(legend_html))
+    description_html = f"""
+        <div style="position: fixed; 
+                    top: 10px; 
+                    left: 10px; 
+                    width: 300px; 
+                    background-color: white; 
+                    z-index:9999; 
+                    font-size:14px; 
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+             The stations are color-coded representing <strong> Attractiveness </strong>, which is a Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)
+        </div>
+        """
+
+    mbta_map.get_root().html.add_child(folium.Element(description_html))
 
     # ✅ **Save the Final Map**
     if not os.path.exists(output_folder):
@@ -640,4 +669,163 @@ def generate_attractiveness_map(time_of_day):
     mbta_map.save(map_path)
 
     return map_path
+
+
+def generate_overlay_singular_map(time_of_day, feature, top_k, common=False):
+    """
+    Generates a map overlaying the top K nodes based on a selected feature.
+    - If `common` is True: Highlights common top-K nodes in red.
+    - If `common` is False: Highlights top-K nodes based on the selected feature's colormap.
+    """
+
+    temp_folder = "page_3_threat_features/temp_playground"
+    output_folder = "page_3_threat_features/output_maps"
+
+    csv_file = f"Feature_Label_{time_of_day}.csv"
+    file_path = os.path.join(temp_folder, csv_file)
+
+    if not os.path.exists(file_path):
+        print(f"File not found: {file_path}")
+        return None
+
+    # Load the CSV file
+    feature_df = pd.read_csv(file_path)
+
+    # Compute center for map view
+    center_lat = feature_df['Lat'].mean()
+    center_lon = feature_df['Lon'].mean()
+    mbta_map = folium.Map(location=[center_lat, center_lon], zoom_start=12, tiles='CartoDB positron')
+
+    # Define colormap for numerical features (if not in common mode)
+    if not common:
+        min_val = feature_df[feature].min()
+        max_val = feature_df[feature].max()
+        median_val = feature_df[feature].median()
+        colormap = cm.LinearColormap(["green", "yellow", "red"], vmin=min_val, vmax=max_val)
+    else:
+        colormap = None  # No color scheme for common map
+
+    # Determine the top K stations based on the feature
+    if not common:
+        top_k_nodes = feature_df.nlargest(top_k, feature)["ID"].tolist()
+    else:
+        # Collect top_k nodes for each selected feature
+        top_k_sets = [
+            set(feature_df.nlargest(top_k, feat)["ID"].tolist()) for feat in feature
+        ]
+        # Find intersection (common nodes among all features)
+        top_k_nodes = list(set.intersection(*top_k_sets)) if top_k_sets else []
+
+    # ✅ **Retained Edge Structure**
+    edge_width = 1.5
+    for _, row in edges_df.iterrows():
+        source_id, target_id = row['Source'], row['Target']
+        line = row['Line']
+
+        source_pos = [G.nodes[source_id]['pos'][0], G.nodes[source_id]['pos'][1]]
+        target_pos = [G.nodes[target_id]['pos'][0], G.nodes[target_id]['pos'][1]]
+
+        line_color = color_mapping.get(line, 'gray')
+
+        folium.PolyLine(
+            [source_pos, target_pos],
+            color=line_color,
+            weight=edge_width,
+            opacity=0.8
+        ).add_to(mbta_map)
+
+    # ✅ **Add Nodes (Stations)**
+    for _, row in feature_df.iterrows():
+        station_id = row['ID']
+        station_name = row["Station_Name"]
+        lat, lon = row["Lat"], row["Lon"]
+        feature_value = row[feature]
+
+        # Coloring logic:
+        if common:
+            # Common nodes in red, others in grey
+            node_color = "red" if station_id in top_k_nodes else "grey"
+            node_radius = 5 if station_id in top_k_nodes else 3
+        else:
+            # Top K nodes get color from colormap, others are grey
+            node_color = colormap(feature_value) if station_id in top_k_nodes else "grey"
+            node_radius = 5 if station_id in top_k_nodes else 3
+
+
+        if not common:
+            content= f"Station: {station_name}<br>{feature}: {feature_value:.2f}"
+        else:
+            content = f"Station: {station_name}"
+
+        folium.CircleMarker(
+            location=[lat, lon],
+            radius=node_radius,
+            color=node_color,
+            fill=True,
+            fill_color=node_color,
+            fill_opacity=1.0,
+                tooltip=content,
+                popup=content,
+        ).add_to(mbta_map)
+
+    # ✅ **Add Color Bar (Only for Individual Feature Maps)**
+    if not common:
+        legend_html = f"""
+        <div style="position: fixed; bottom: 50px; left: 50px; width: 40px; height: 180px; background-color: rgba(255, 255, 255, 0.8); z-index:9999; font-size:12px; border: none; padding: 10px;">
+            <div style="height: 170px; width: 20px; background: linear-gradient(to top, green, yellow, red);"></div>
+            <div style="position: absolute; bottom: 0; left: 35px;">{min_val:.2f}</div>
+            <div style="position: absolute; top: 50%; left: 35px;">{median_val:.2f}</div>
+            <div style="position: absolute; top: 0; left: 35px;">{max_val:.2f}</div>
+        </div>
+        """
+        mbta_map.get_root().html.add_child(folium.Element(legend_html))
+
+    # ✅ **Description (Only for Individual Feature Maps)**
+    if not common:
+        description_html = f"""
+        <div style="position: fixed; 
+                    top: 10px; 
+                    left: 10px; 
+                    width: 300px; 
+                    background-color: white; 
+                    z-index:9999; 
+                    font-size:14px; 
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+            The stations are color-coded representing <strong>{feature.replace("_", " ").capitalize()}</strong>, 
+            highlighting the top {top_k} stations in this feature.
+        </div>
+        """
+    else:
+        description_html = f"""
+                <div style="position: fixed; 
+                            top: 10px; 
+                            left: 10px; 
+                            width: 300px; 
+                            background-color: white; 
+                            z-index:9999; 
+                            font-size:14px; 
+                            padding: 10px; 
+                            border-radius: 5px; 
+                            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+                    Represents the common stations which are overlapping in all 3 ranges.
+                </div>
+                """
+    mbta_map.get_root().html.add_child(folium.Element(description_html))
+
+    # ✅ **Save the Final Map**
+    if not os.path.exists(output_folder):
+        os.makedirs(output_folder)
+
+    # Different filenames for individual and common maps
+    if common:
+        map_path = os.path.join(output_folder, f"mbta_common_top{top_k}_{time_of_day}.html")
+    else:
+        map_path = os.path.join(output_folder, f"mbta_{feature}_top{top_k}_{time_of_day}.html")
+
+    mbta_map.save(map_path)
+
+    return map_path
+
 

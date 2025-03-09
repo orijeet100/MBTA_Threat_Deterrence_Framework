@@ -9,7 +9,7 @@ from page_2_map_with_features.map_features import MapFeaturesApp  # Import the c
 
 # Load Available Time of Day CSVs
 # threat_folder = "page_3_threat_features/Feature_Tables"
-threat_folder = "page_3_threat_features/Feature_Label_with_Names_2025.02.24"
+threat_folder = "page_3_threat_features/Feature_Label"
 crime_folder = "page_3_threat_features/Crime_Data"  # Folder for crime heatmap data
 # time_of_day_options = [
 #     filename.replace("Feature_Table_", "").replace(".csv", "")
@@ -17,7 +17,7 @@ crime_folder = "page_3_threat_features/Crime_Data"  # Folder for crime heatmap d
 # ]
 
 time_of_day_options = [
-    filename.replace("Feature_Label_with_Names_", "").replace(".csv", "")
+    filename.replace("Feature_Label_", "").replace(".csv", "")
     for filename in os.listdir(threat_folder) if filename.endswith(".csv")
 ]
 
