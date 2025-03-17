@@ -32,7 +32,7 @@ default_time = "EARLY_AM"
 # ]
 
 feature_columns = [
-    "D_nearest_police", "D_nearest_fire", "D_nearest_hospital",
+    "D_nearest_police", "D_nearest_fire", "D_nearest_hospital","D_police_fire",
     "Defense_Posture", "Population_Density", "Average_Ridership",
     "Crime_Index", "Threat_Level","Attractiveness"
 ]

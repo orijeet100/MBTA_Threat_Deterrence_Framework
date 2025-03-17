@@ -229,7 +229,7 @@ layer_icons = {
 feature_columns = [
     "Attractiveness",
     "Defense_Posture", "Population_Density", "Average_Ridership",
-    "Crime_Index", "Threat_Level","D_nearest_police", "D_nearest_fire", "D_nearest_hospital"
+    "Crime_Index", "Threat_Level","D_nearest_police", "D_nearest_fire", "D_nearest_hospital","D_police_fire"
 ]
 
 # Define categorical colors
@@ -277,7 +277,8 @@ feature_descriptions = {
     "D_nearest_police_name": "Name of the nearest police station. Provided for informational purposes, not selectable for top K.",
     "D_nearest_fire_name": "Name of the nearest fire station. Provided for informational purposes, not selectable for top K.",
     "D_nearest_hospital_name": "Name of the nearest hospital. Provided for informational purposes, not selectable for top K.",
-    "Attractiveness": "Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)"
+    "Attractiveness": "Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)",
+    "D_police_fire": "Weighted sum of distances to nearest police and fire departments to indicate the level of potential protective resources for the target rail station of interest."
 }
 
 
@@ -348,7 +349,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
     # Calculate padding based on the longest label
     longest_label = max([additional_fields.get(feat, feat) for feat in display_features], key=len)
 
-    ascending_features = {"D_nearest_police", "D_nearest_fire", "D_nearest_hospital"}
+    ascending_features = {"D_nearest_police", "D_nearest_fire", "D_nearest_hospital","D_police_fire"}
 
     # Determine if the feature is ascending or descending
     is_ascending = selected_feature in ascending_features
@@ -388,17 +389,21 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
         custom_labels = {
             "D_nearest_police": "Distance from nearest police station",
             "D_nearest_fire": "Distance from nearest fire station ",
-            "D_nearest_hospital": "Distance from nearest hospital "
+            "D_nearest_hospital": "Distance from nearest hospital ",
+            "D_nearest_police_name": "Nearest Police Station Name",
+            "D_nearest_fire_name": "Nearest Fire Station Name",
+            "D_nearest_hospital_name": "Nearest Hospital Name",
+            "D_police_fire": "Weighted distance of police & fire station"
         }
 
-        tooltip_content = "<br>".join([
+        tooltip_content = f"Station Name: {row['Station_Name']}<br>" + "<br>".join([
             f"{custom_labels.get(feat, feat.replace('_', ' ').capitalize())}: {round(row[feat], 2) if isinstance(row[feat], float) else row[feat]}"
-            for feat in display_features
+            for feat in display_features if feat != "Attractiveness"  # Exclude Attractiveness
         ])
 
-        popup_content = "<br>".join([
+        popup_content = f"Station Name: {row['Station_Name']}<br>" + "<br>".join([
             f"{custom_labels.get(feat, feat.replace('_', ' ').capitalize())}: {round(row[feat], 2) if isinstance(row[feat], float) else row[feat]}"
-            for feat in display_features
+            for feat in display_features if feat != "Attractiveness"  # Exclude Attractiveness
         ])
 
         folium.CircleMarker(
@@ -486,7 +491,6 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
     # ✅ **Add Legend for Categorical Features**
 
-
     if is_categorical and selected_feature != "Attractiveness":
         if selected_feature=="Defense_Posture":
             legend_html = """
@@ -516,8 +520,9 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
             """
 
 
-
         mbta_map.get_root().html.add_child(folium.Element(legend_html))
+
+
     elif colormap and selected_feature != "Attractiveness":
         # mbta_map.add_child(colormap)
 
@@ -705,6 +710,12 @@ def generate_overlay_singular_map(time_of_day, feature, top_k, common=False):
     else:
         colormap = None  # No color scheme for common map
 
+    ascending_features = {"D_nearest_police", "D_nearest_fire", "D_nearest_hospital","D_police_fire"}
+
+    # Determine if the feature is ascending or descending
+
+
+
     # Determine the top K stations based on the feature
     if not common:
         top_k_nodes = feature_df.nlargest(top_k, feature)["ID"].tolist()
@@ -713,8 +724,19 @@ def generate_overlay_singular_map(time_of_day, feature, top_k, common=False):
         top_k_sets = [
             set(feature_df.nlargest(top_k, feat)["ID"].tolist()) for feat in feature
         ]
-        # Find intersection (common nodes among all features)
-        top_k_nodes = list(set.intersection(*top_k_sets)) if top_k_sets else []
+
+        # Count occurrences of each node in multiple features
+        node_counts = {}
+        for feature_set in top_k_sets:
+            for node in feature_set:
+                node_counts[node] = node_counts.get(node, 0) + 1
+
+        # Assign colors based on occurrences
+        node_color_map = {
+            1: "yellow",  # Present in 1 feature
+            2: "orange",  # Present in 2 features
+            3: "red"      # Present in 3 features
+        }
 
     # ✅ **Retained Edge Structure**
     edge_width = 1.5
@@ -743,9 +765,9 @@ def generate_overlay_singular_map(time_of_day, feature, top_k, common=False):
 
         # Coloring logic:
         if common:
-            # Common nodes in red, others in grey
-            node_color = "red" if station_id in top_k_nodes else "grey"
-            node_radius = 5 if station_id in top_k_nodes else 3
+            node_count = node_counts.get(station_id, 0)
+            node_color = node_color_map.get(node_count, "grey")  # Assign color based on occurrences
+            node_radius = 5 if node_count > 0 else 3  # Highlight top nodes3
         else:
             # Top K nodes get color from colormap, others are grey
             node_color = colormap(feature_value) if station_id in top_k_nodes else "grey"
@@ -778,7 +800,18 @@ def generate_overlay_singular_map(time_of_day, feature, top_k, common=False):
             <div style="position: absolute; top: 0; left: 35px;">{max_val:.2f}</div>
         </div>
         """
-        mbta_map.get_root().html.add_child(folium.Element(legend_html))
+
+    else:
+        # Color legend for common occurrence map
+        legend_html = """
+        <div style="position: fixed; bottom: 50px; left: 50px; width: 150px; height: 100px; background-color: rgba(255, 255, 255, 0.8); z-index:9999; font-size:12px; border: none; padding: 10px;">
+            <b>Common Occurrences</b><br>
+            <div style="height: 15px; width: 15px; background: red; display: inline-block;"></div> Present in all frames<br>
+            <div style="height: 15px; width: 15px; background: orange; display: inline-block;"></div> Present in 2 frames<br>
+            <div style="height: 15px; width: 15px; background: yellow; display: inline-block;"></div> Present in 1 frames<br>
+        </div>
+        """
+    mbta_map.get_root().html.add_child(folium.Element(legend_html))
 
     # ✅ **Description (Only for Individual Feature Maps)**
     if not common:
