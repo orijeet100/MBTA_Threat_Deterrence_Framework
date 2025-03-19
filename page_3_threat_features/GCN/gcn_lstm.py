@@ -58,10 +58,8 @@ if __name__ == "__main__":
     edge_index = torch.tensor(edge_index, dtype=torch.int)
 
     features = torch.load('Original_Features.pth')
-    # todo: add edits from dashboard and update the features (save a copy)
 
     model.eval()
     with torch.no_grad():
         test_predictions = model(features, edge_index)
 
-    # todo: then visualize the test predictions into dashboard

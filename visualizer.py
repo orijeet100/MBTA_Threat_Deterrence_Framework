@@ -540,7 +540,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
     elif colormap and selected_feature != "Attractiveness":
 
-        # HTML for top K nodes overlay
+        # HTML for top K nodes overlay layer
 
         remaining_stations = len(top_k_data) - 10
 
