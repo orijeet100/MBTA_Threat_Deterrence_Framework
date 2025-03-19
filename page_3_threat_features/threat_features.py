@@ -24,18 +24,26 @@ time_of_day_options = [
 # Default Time of Day
 default_time = "EARLY_AM"
 
-# Feature columns from the updated dataset
-# feature_columns = [
-#     "D_nearest_police", "D_nearest_fire", "D_nearest_hospital",
-#     "Protection_Level", "Total_Population", "average_ridership",
-#     "All_Crime_Index", "Threat_level"
-# ]
 
 feature_columns = [
     "D_nearest_police", "D_nearest_fire", "D_nearest_hospital","D_police_fire",
     "Defense_Posture", "Population_Density", "Average_Ridership",
     "Crime_Index", "Threat_Level","Attractiveness"
 ]
+
+feature_display_mapping = {
+    "Basemap": "Basemap",
+    "Crime_Index": "Crime_Index",
+    "Defense_Posture": "Defense_Posture",
+    "Population_Density": "Population_Density",
+    "Average_Ridership": "Average_Ridership",
+    "Threat_Level": "Threat_Level",
+    "Attractiveness": "Attractiveness",
+    "Distance from Police Dept": "D_nearest_police",
+    "Distance from Hospital": "D_nearest_hospital",
+    "Distance from Fire Dept": "D_nearest_fire",
+    "Distance from Police & Fire Dept": "D_police_fire",
+}
 
 class ThreatFeaturesApp(QWidget):
     def __init__(self):
@@ -56,14 +64,11 @@ class ThreatFeaturesApp(QWidget):
         self.time_of_day_dropdown.setCurrentText(default_time)
         # self.time_of_day_dropdown.currentTextChanged.connect(self.update_features)
 
-        # Dropdown for Feature Selection
+        # Feature Dropdown (Use only display names)
         self.feature_dropdown = QComboBox()
-        self.current_feature = "Crime_Index"  # Default feature
-        self.feature_dropdown.addItems(feature_columns)
-        self.feature_dropdown.setCurrentText(self.current_feature)
-        # self.feature_dropdown.currentTextChanged.connect(self.update_map)
+        self.feature_dropdown.addItems(list(feature_display_mapping.keys()))  # Ensure only mapped names appear
+        self.feature_dropdown.setCurrentText("Crime Index")  # Default selection
         self.feature_dropdown.currentTextChanged.connect(self.check_feature_type)
-
 
         # Top K Selector
         self.top_k_selector = QSpinBox()
@@ -90,7 +95,7 @@ class ThreatFeaturesApp(QWidget):
             layers_layout.addWidget(checkbox)
 
         # **HeatMap Toggle (Crime HeatMap)**
-        self.heatmap_checkbox = QCheckBox("Show Crime HeatMap")
+        self.heatmap_checkbox = QCheckBox("Show Crime Heatmap")
         self.heatmap_checkbox.setChecked(False)
         self.heatmap_checkbox.stateChanged.connect(self.apply_filters)
 
@@ -127,21 +132,21 @@ class ThreatFeaturesApp(QWidget):
         self.centrality_window = MapFeaturesApp()
         self.centrality_window.show()
 
-    def update_features(self):
-        """ Updates feature dropdown when time of day changes while keeping selection intact. """
-        selected_time = self.time_of_day_dropdown.currentText()
-        current_feature = self.feature_dropdown.currentText()
-
-        # Ensure previous selection exists in the new dropdown
-        if current_feature in feature_columns:
-            self.feature_dropdown.setCurrentText(current_feature)
-        else:
-            self.feature_dropdown.setCurrentText("Crime_Index")  # Default if previous selection is invalid
-
-        self.check_feature_type(current_feature)
-
-        # Update map after UI stabilizes
-        QTimer.singleShot(100, self.apply_filters)
+    # def update_features(self):
+    #     """ Updates feature dropdown when time of day changes while keeping selection intact. """
+    #     selected_time = self.time_of_day_dropdown.currentText()
+    #     current_feature = self.feature_dropdown.currentText()
+    #
+    #     # Ensure previous selection exists in the new dropdown
+    #     if current_feature in feature_columns:
+    #         self.feature_dropdown.setCurrentText(current_feature)
+    #     else:
+    #         self.feature_dropdown.setCurrentText("Crime_Index")  # Default if previous selection is invalid
+    #
+    #     self.check_feature_type(current_feature)
+    #
+    #     # Update map after UI stabilizes
+    #     QTimer.singleShot(100, self.apply_filters)
 
     def check_feature_type(self, feature):
         """ Enable or disable Top K Selector based on whether the feature is categorical """
@@ -150,11 +155,14 @@ class ThreatFeaturesApp(QWidget):
         else:
             self.top_k_selector.setEnabled(True)
 
-
     def apply_filters(self):
         """ Retrieves the selections and updates the map based on them. """
         selected_time = self.time_of_day_dropdown.currentText()
-        selected_feature = self.feature_dropdown.currentText()
+        selected_display_name = self.feature_dropdown.currentText()
+
+        # Convert display name to actual feature name
+        selected_feature = feature_display_mapping.get(selected_display_name, selected_display_name)
+
         top_k = self.top_k_selector.value() if self.top_k_selector.isEnabled() else None
         self.update_map(selected_time, selected_feature, top_k)
 

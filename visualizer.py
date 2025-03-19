@@ -206,15 +206,15 @@ layer_folder = "page_3_threat_features/Layer_Information"
 
 # Layer CSVs
 layer_files = {
-    "Police Stations": "Boston_police.csv",
-    "Fire Stations": "Boston_fire.csv",
+    "Police Dept": "Boston_police.csv",
+    "Fire Dept": "Boston_fire.csv",
     "Hospitals": "Boston_hospital.csv"
 }
 
 # Emoji markers for layers
 layer_icons = {
-    "Police Stations": "access_measures_logos/police.png",
-    "Fire Stations": "access_measures_logos/fire.png",
+    "Police Dept": "access_measures_logos/police.png",
+    "Fire Dept": "access_measures_logos/fire.png",
     "Hospitals": "access_measures_logos/hospital.png"
 }
 
@@ -266,26 +266,26 @@ additional_fields = {
 # }
 
 feature_descriptions = {
-    "D_nearest_police": "Distance to the nearest police station in meters. Highlights the top K stations closest to police.",
-    "D_nearest_fire": "Distance to the nearest fire station in meters. Highlights the top K stations closest to fire services.",
-    "D_nearest_hospital": "Distance to the nearest hospital in meters. Highlights the top K stations closest to medical facilities.",
+    "D_nearest_police": "Normalized Distance to the nearest police station in meters. Highlights the top K stations closest to police.",
+    "D_nearest_fire": "Normalized Distance to the nearest fire station in meters. Highlights the top K stations closest to fire services.",
+    "D_nearest_hospital": "Normalized Distance to the nearest hospital in meters. Highlights the top K stations closest to medical facilities.",
     "Defense_Posture": "Level of protection based on nearby emergency services categorized as High, Medium, or Low. Displays all stations categorized under the selected level.",
-    "Population_Density": "Total population in the area surrounding the station. Highlights the top K stations with the highest surrounding populations.",
-    "Average_Ridership": "Average daily ridership at this station. Highlights the top K stations with the highest ridership.",
-    "Crime_Index": "Composite index representing the total crime rate in the vicinity of the station. Highlights the top K stations with the highest crime indices.",
+    "Population_Density": "Normalized population in the area surrounding the station. Highlights the top K stations with the highest surrounding populations.",
+    "Average_Ridership": "Normalized Average daily ridership at this station. Highlights the top K stations with the highest ridership.",
+    "Crime_Index": "Normalized Composite index representing the total crime rate in the vicinity of the station. Highlights the top K stations with the highest crime indices.",
     "Threat_Level": "Threat level is based on crime data, categorized as High, Medium, or Low. Displays all stations categorized under the selected threat level.",
     "D_nearest_police_name": "Name of the nearest police station. Provided for informational purposes, not selectable for top K.",
     "D_nearest_fire_name": "Name of the nearest fire station. Provided for informational purposes, not selectable for top K.",
     "D_nearest_hospital_name": "Name of the nearest hospital. Provided for informational purposes, not selectable for top K.",
-    "Attractiveness": "Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)",
-    "D_police_fire": "Weighted sum of distances to nearest police and fire departments to indicate the level of potential protective resources for the target rail station of interest."
+    "Attractiveness": "Normalized Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)",
+    "D_police_fire": "Normalized Weighted sum of distances to nearest police and fire departments to indicate the level of potential protective resources for the target rail station of interest."
 }
 
 
 
 crime_folder = "page_3_threat_features/Crime_Data"
 
-global_feature_min, global_feature_max = get_global_min_max(threat_folder, feature_columns)
+# global_feature_min, global_feature_max = get_global_min_max(threat_folder, feature_columns)
 
 def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, active_layers=None, show_heatmap=False):
     """
@@ -303,6 +303,9 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
     # Load the selected CSV file
     feature_df = pd.read_csv(file_path)
 
+    if selected_feature == "Basemap":
+        map_path =generate_basemap_feature(time_of_day,active_layers,show_heatmap)
+        return map_path
 
     # Merge with nodes_df based on Station_ID
     merged_df = feature_df.rename(columns={"Station_Name": "Station_Name", "ID": "ID"})
@@ -328,12 +331,23 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
         # Vertical color bar with labels for min, median, max values
         legend_html = f"""
-        <div style="position: fixed; bottom: 50px; left: 50px; width: 40px; height: 180px; background-color: rgba(255, 255, 255, 0.8); z-index:9999; font-size:12px; border: none; padding: 10px;">
-            <div style="height: 170px; width: 20px; background: linear-gradient(to top, green, yellow, red);"></div>
-            <div style="position: absolute; bottom: 0; left: 35px;">{min_val:.2f}</div>
-            <div style="position: absolute; top: 50%; left: 35px;">{median_val:.2f}</div>
-            <div style="position: absolute; top: 0; left: 35px;">{max_val:.2f}</div>
+        <div style="position: fixed; bottom: 50px; left: 50px; width: 60px; height: 200px; background-color: rgba(255, 255, 255, 0.8); 
+                    z-index:9999; font-size:12px; border: none; padding: 10px; text-align: center;">
+
+            <!-- Color Gradient Bar -->
+            <div style="height: 170px; width: 20px; background: linear-gradient(to top, green, yellow, red); margin: auto;"></div>
+
+            <!-- Min, Median, Max Values -->
+            <div style="position: absolute; bottom: 20px; left: 45px;">{min_val:.2f}</div>
+            <div style="position: absolute; top: 50%; left: 45px; transform: translateY(-50%);">{median_val:.2f}</div>
+            <div style="position: absolute; top: 0; left: 45px;">{max_val:.2f}</div>
+
+            <!-- Label for Normalized Values BELOW the bar -->
+            <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-weight: bold; font-size: 12px;">
+                Normalized Values
+            </div>
         </div>
+
         """
         mbta_map.get_root().html.add_child(folium.Element(legend_html))
     else:
@@ -453,11 +467,11 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
                         lat, lon = loc["Latitude"], loc["Longitude"]
                         icon_path = layer_icons[layer_name]
 
-                        # Create a custom icon
+                        # Create a custom icons
                         custom_icon = folium.CustomIcon(
                             icon_image=icon_path,
-                            icon_size=(20, 20),  # Set the size of the icon
-                            icon_anchor=(10, 10)  # Anchor the middle-bottom point of the icon
+                            icon_size=(20, 20),  # Set the size of the icons
+                            icon_anchor=(10, 10)  # Anchor the middle-bottom point of the icons
                         )
 
                         folium.Marker(
@@ -523,29 +537,40 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
         mbta_map.get_root().html.add_child(folium.Element(legend_html))
 
 
+
     elif colormap and selected_feature != "Attractiveness":
-        # mbta_map.add_child(colormap)
 
         # HTML for top K nodes overlay
+
         remaining_stations = len(top_k_data) - 10
 
         # HTML for top K nodes overlay
+
         top_k_html = f"""
-        <div style="position: fixed; top: 50px; right: 50px; width: 200px; height: 250px; 
+
+        <div style="position: fixed; top: 50px; right: 50px; width: 230px; height: 250px; 
+
                     background-color: white; z-index:9999; font-size:14px;
+
                     border: 2px solid grey; overflow-y: auto;">
+
             <h4 style="text-align:center;">Top {min(len(top_k_data), 10)}: {selected_feature}</h4>
+
             <ul>
+
         """
-        for name, value in top_k_data[:10]:  # limit to top 10 for display
-            top_k_html += f"<li>{name}: {value:.2f}</li>"
+
+        for name, value in top_k_data[:10]:  # Limit to top 10 for display
+
+            top_k_html += f"<li>{name}: <b>{value:.2f}</b></li>"
 
         if remaining_stations > 0:
-            top_k_html += f"<li>... and {remaining_stations} more stations</li>"
+            top_k_html += f"<li>... and <b>{remaining_stations}</b> more stations</li>"
 
         top_k_html += "</ul></div>"
 
         # Add the overlay to the map
+
         mbta_map.get_root().html.add_child(folium.Element(top_k_html))
 
     description_html = f"""
@@ -567,6 +592,112 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
     # ✅ **Save the Final Map**
     map_path = os.path.join(output_folder, f"mbta_threat_{time_of_day}_{selected_feature}_top{top_k}.html")
+    mbta_map.save(map_path)
+    return map_path
+
+
+def generate_basemap_feature(time_of_day,active_layers=None, show_heatmap=False):
+    center_lat, center_lon = nodes_df['Lat'].mean(), nodes_df['Lon'].mean()
+    mbta_map = folium.Map(location=[center_lat, center_lon], zoom_start=12, tiles='CartoDB positron')
+
+    # Add Nodes
+    for _, row in nodes_df.iterrows():
+        folium.CircleMarker(
+            location=[row["Lat"], row["Lon"]],
+            radius=3,  # Standard size
+            color="black",  # All nodes in black
+            fill=True,
+            fill_color="black",
+            fill_opacity=1.0,
+            tooltip=f"Station Name: {row['stop_name']}"
+        ).add_to(mbta_map)
+
+    # Add Edges
+    for _, row in edges_df.iterrows():
+        source_id, target_id = row['Source'], row['Target']
+        line = row['Line']
+
+        source_pos = [G.nodes[source_id]['pos'][0], G.nodes[source_id]['pos'][1]]
+        target_pos = [G.nodes[target_id]['pos'][0], G.nodes[target_id]['pos'][1]]
+
+        line_color = color_mapping.get(line, 'gray')
+
+        folium.PolyLine(
+            [source_pos, target_pos],
+            color=line_color,
+            weight=1.5,
+            opacity=0.8
+        ).add_to(mbta_map)
+
+    # ✅ Add Basic Information Box at the Bottom
+    total_nodes = len(nodes_df)
+    total_edges = len(edges_df)
+
+    # ✅ **Add External Layers (Police, Fire, Hospital)**
+    if active_layers:
+        for layer_name, file_name in layer_files.items():
+            if layer_name in active_layers:
+                layer_path = os.path.join(layer_folder, file_name)
+                if os.path.exists(layer_path):
+                    layer_df = pd.read_csv(layer_path)
+
+                    for _, loc in layer_df.iterrows():
+                        lat, lon = loc["Latitude"], loc["Longitude"]
+                        icon_path = layer_icons[layer_name]
+
+                        # Create a custom icons
+                        custom_icon = folium.CustomIcon(
+                            icon_image=icon_path,
+                            icon_size=(20, 20),  # Set the size of the icons
+                            icon_anchor=(10, 10)  # Anchor the middle-bottom point of the icons
+                        )
+
+                        folium.Marker(
+                            location=[lat, lon],
+                            icon=custom_icon,
+                            tooltip=layer_name
+                        ).add_to(mbta_map)
+
+    # ✅ **Add Crime HeatMap if enabled**
+    if show_heatmap:
+        crime_file = f"Boston_Cambridge_Brookline_crime_filtered_{time_of_day}.csv"
+        crime_path = os.path.join(crime_folder, crime_file)
+
+        if os.path.exists(crime_path):
+            crime_df = pd.read_csv(crime_path)
+
+            # ✅ Filter out rows with missing latitude/longitude values
+            crime_df = crime_df.dropna(subset=["Lat", "Long"])
+
+            # ✅ Extract valid coordinates for the HeatMap
+            heat_data = crime_df[["Lat", "Long"]].values.tolist()
+            gradient = {0.2: 'red', 0.4: 'darkred', 0.6: 'firebrick', 0.8: 'crimson', 1.0: 'maroon'}
+            # ✅ Ensure there's crime data before applying HeatMap
+            if heat_data:
+                HeatMap(
+                    heat_data,
+                    radius=15,
+                    blur=15,
+                    min_opacity=0.4,
+                ).add_to(mbta_map)
+
+    description_html = f"""
+                <div style="position: fixed; 
+                            bottom: 30px; left: 50px; 
+                            width: 200px; background-color: rgba(255, 255, 255, 0.8); 
+                            z-index:9999; font-size:14px; 
+                            padding: 10px; border-radius: 5px; 
+                            text-align: center; box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+                    <strong>Boston Urban Rail Attributes</strong><br>
+                    Total Nodes: {total_nodes}</strong><br>
+                    Total Edges: {total_edges}</strong><br>
+                    4 Different Lines</strong>
+                </div>
+                """
+    mbta_map.get_root().html.add_child(folium.Element(description_html))
+
+    # ✅ Save the Basemap
+    map_path = os.path.join(output_folder, "mbta_basemap.html")
     mbta_map.save(map_path)
     return map_path
 

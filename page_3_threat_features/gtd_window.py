@@ -2,140 +2,134 @@ import sys
 import os
 import pandas as pd
 import folium
-from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget, QGridLayout, QLabel
-from PyQt6.QtWebEngineWidgets import QWebEngineView
-from PyQt6.QtCore import Qt
+import webbrowser
 
-class GTDMapWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Global Terrorism Database (GTD) Visualization")
-        # Start Maximized (Keeps Minimize & Close Buttons, Removes Resize)
-        self.showMaximized()
+def generate_gtd_map():
+    """Generates a single GTD map with all urban rail attacks globally."""
+    data_path = "page_3_threat_features/GTD_data/gtd_combined.csv"
+    output_folder = "page_3_threat_features/GTD_data/maps"
+    os.makedirs(output_folder, exist_ok=True)
+    global_map_path = os.path.join(output_folder, "gtd_map_all.html")
 
-        # Disable resizing but keep Minimize and Close buttons
-        self.setWindowFlags(
-            Qt.WindowType.Window | Qt.WindowType.WindowMinimizeButtonHint | Qt.WindowType.WindowCloseButtonHint)
+    if not os.path.exists(data_path):
+        print(f"Data file not found: {data_path}")
+        return
 
-        # Ensure output folder exists
-        self.output_folder = "page_3_threat_features/GTD_data/maps"
-        os.makedirs(self.output_folder, exist_ok=True)
+    if os.path.exists(global_map_path):
+        webbrowser.open(global_map_path)  # Open the existing map
+        return
 
-        # Check if maps exist, otherwise generate them
-        self.us_map_path = os.path.join(self.output_folder, "gtd_us_map.html")
-        self.world_map_path = os.path.join(self.output_folder, "gtd_world_map.html")
+    df = pd.read_csv(data_path, encoding="ISO-8859-1", low_memory=False)
 
-        if not os.path.exists(self.us_map_path) or not os.path.exists(self.world_map_path):
-            self.generate_gtd_maps()
+    # Filter for transportation attacks related to trains and subways
+    df = df.dropna(subset=["latitude", "longitude"])
+    df = df[
+        (df["targtype1_txt"] == "Transportation") &
+        (df["targsubtype1_txt"].isin(["Train/Train Tracks/Trolley", "Subway"]))
+    ]
 
-        # Display UI once both maps are available
-        self.setup_ui()
+    # Count statistics
+    total_attacks = len(df)
+    us_attacks = df[df["country_txt"] == "United States"]
+    world_attacks = df[df["country_txt"] != "United States"]
 
-    def generate_gtd_maps(self):
-        """Generates GTD maps and saves them as HTML files."""
-        data_path = "page_3_threat_features/GTD_data/gtd_combined.csv"
+    pre_9_11_us = len(us_attacks[(us_attacks["iyear"] < 2001) | ((us_attacks["iyear"] == 2001) & (us_attacks["imonth"] < 9))])
+    post_9_11_us = len(us_attacks) - pre_9_11_us
 
-        if not os.path.exists(data_path):
-            print(f"Data file not found: {data_path}")
-            return
+    pre_9_11_global = len(df[(df["iyear"] < 2001) | ((df["iyear"] == 2001) & (df["imonth"] < 9))])
+    post_9_11_global = total_attacks - pre_9_11_global
 
-        df = pd.read_csv(data_path, encoding="ISO-8859-1", low_memory=False)
+    # Most common attack types
+    us_top_attacks = us_attacks["attacktype1_txt"].value_counts().head(2)
+    world_top_attacks = world_attacks["attacktype1_txt"].value_counts().head(2)
 
-        # Filter US and Non-US attacks
-        us_attacks = df[df["country_txt"] == "United States"][:50]
-        world_attacks = df[df["country_txt"] != "United States"][:50]
+    # Create the folium map with a simple base map
+    m = folium.Map(location=[20, 0], zoom_start=3, tiles="CartoDB positron")  # Faster, less detailed map
 
-        us_attacks = us_attacks.dropna(subset=["latitude", "longitude"])
-        world_attacks = world_attacks.dropna(subset=["latitude", "longitude"])
+    # Add title
+    title_html = """
+    <div style="position: fixed;
+                top: 10px; left: 50%;
+                transform: translateX(-50%);
+                background-color: rgba(255, 255, 255, 0.9);
+                padding: 15px;
+                font-size: 27px;
+                font-weight: bold;
+                text-align: center;
+                z-index:9999;
+                border-radius: 8px;">
+        Global Terrorist Attacks on Urban Rail
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(title_html))
 
+    # Add markers with hover tooltips (Attack Type & Date)
+    for _, row in df.iterrows():
+        color = "red" if (row["iyear"] > 2001 or (row["iyear"] > 2001 and row["imonth"] > 9)) else "orange"
+        attack_date = f"{int(row['imonth']):02d}-{int(row['iday']):02d}-{row['iyear']}"
+        tooltip_text = f"Attack type: {row['attacktype1_txt']}<br>Date: {attack_date}"
 
-        # Function to create maps
-        def create_map(attacks_df, title, output_file, center, zoom):
-            """Generates a folium map with a title embedded on it."""
-            m = folium.Map(location=center, zoom_start=zoom, tiles="CartoDB positron")
+        folium.CircleMarker(
+            location=[row["latitude"], row["longitude"]],
+            radius=2.5,
+            color=color,
+            fill=True,
+            fill_color=color,
+            fill_opacity=1.0,
+            tooltip=tooltip_text
+        ).add_to(m)
 
-            # Add title as an HTML overlay inside the map
-            title_html = f"""
-            <div style="position: fixed; 
-                        top: 10px; left: 50%; 
-                        transform: translateX(-50%);
-                        background-color: rgba(255, 255, 255, 0.8);
-                        padding: 10px;
-                        font-size: 16px;
-                        font-weight: bold;
-                        z-index:9999; 
-                        border-radius: 5px;">
-                {title}
-            </div>
-            """
-            m.get_root().html.add_child(folium.Element(title_html))
+    # Add Legend
+    legend_html = """
+    <div style="
+        position: fixed; 
+        bottom: 50px; left: 50px; width: 170px; height: 80px; 
+        background-color: white; z-index:9999; font-size:14px;
+        border-radius: 5px; padding: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+        <b>Legend</b><br>
+        <div style='background-color:red; width: 15px; height: 15px; display: inline-block;'></div> Post-9/11 Attacks <br>
+        <div style='background-color:orange; width: 15px; height: 15px; display: inline-block;'></div> Pre-9/11 Attacks <br>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(legend_html))
 
-            # Add the attack markers
-            for _, row in attacks_df.iterrows():
-                color = "red" if (row["iyear"] > 2001 and row["imonth"] > 9) else "yellow"
-                folium.CircleMarker(
-                    location=[row["latitude"], row["longitude"]],
-                    radius=5,
-                    color=color,
-                    fill=True,
-                    fill_color=color,
-                    fill_opacity=1.0,
-                    tooltip=f"Attack type: {row['attacktype1_txt']}"
-                ).add_to(m)
+    # Statistics Bar
+    stats_html = f"""
+    <div style="position: fixed;
+                bottom: 20px; right: 10px;
+                width: 350px;
+                background-color: rgba(255, 255, 255, 0.9);
+                z-index:9999; font-size:14px;
+                border-radius: 5px; padding: 10px;
+                box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+        <b>Attack Statistics</b><br>
+        <b>Top Attack Types in U.S.:</b><br>
+        {us_top_attacks.index[0]}: {us_top_attacks.iloc[0]} attacks<br>
+        {us_top_attacks.index[1]}: {us_top_attacks.iloc[1]} attacks<br><br>
 
-            # Add Legend
-            legend_html = """
-            <div style="
-                position: fixed; 
-                bottom: 50px; left: 50px; width: 180px; height: 90px; 
-                background-color: white; z-index:9999; font-size:14px;
-                border-radius: 5px; padding: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
-                <b>Legend</b><br>
-                <div style='background-color:red; width: 15px; height: 15px; display: inline-block;'></div> Post-9/11 Attacks <br>
-                <div style='background-color:yellow; width: 15px; height: 15px; display: inline-block;'></div> Pre-9/11 Attacks <br>
-            </div>
-            """
-            m.get_root().html.add_child(folium.Element(legend_html))
+        <b>Top Attack Types Globally:</b><br>
+        {world_top_attacks.index[0]}: {world_top_attacks.iloc[0]} attacks<br>
+        {world_top_attacks.index[1]}: {world_top_attacks.iloc[1]} attacks<br><br>
 
-            # Save map
-            m.save(output_file)
+        <b>Total Attacks:</b> {total_attacks}<br>
+        <b>Pre-9/11 Attacks (U.S.):</b> {pre_9_11_us}<br>
+        <b>Post-9/11 Attacks (U.S.):</b> {post_9_11_us}<br>
+        <b>Pre-9/11 Attacks (Global):</b> {pre_9_11_global}<br>
+        <b>Post-9/11 Attacks (Global):</b> {post_9_11_global}<br>
+        <div style="font-style: italic; font-size: 12px; text-align: center; margin-top: 10px;">
+        Source: Global Terrorism Dataset
+    </div>
+    </div>
+    """
+    m.get_root().html.add_child(folium.Element(stats_html))
 
-        # Generate maps for US and World
-        create_map(us_attacks, "Terrorist Attacks in the United States", self.us_map_path, [37.0902, -95.7129], 4)
-        create_map(world_attacks, "Terrorist Attacks Outside the United States", self.world_map_path, [20, 0], 2)
+    # Save map
+    m.save(global_map_path)
 
-    def setup_ui(self):
-        """Sets up the UI layout with properly formatted map titles and spacing."""
-        layout = QVBoxLayout()
-
-
-        # Grid layout for two maps
-        grid_layout = QGridLayout()
-
-        # Web views for displaying maps
-        self.map_views = [QWebEngineView(), QWebEngineView()]
-
-        # Load generated maps
-        self.map_views[0].setHtml(open(self.us_map_path).read())
-        self.map_views[1].setHtml(open(self.world_map_path).read())
-
-
-        grid_layout.addWidget(self.map_views[0], 1, 0)
-        grid_layout.addWidget(self.map_views[1], 1, 1)
-
-        # Adjust layout sizes
-        grid_layout.setColumnStretch(0, 1)
-        grid_layout.setColumnStretch(1, 1)
-        grid_layout.setRowStretch(1, 1)
-
-        # Add to main layout
-        layout.addLayout(grid_layout)
-
-        self.setLayout(layout)
+    # Open map in the system default web browser
+    webbrowser.open(global_map_path)
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = GTDMapWindow()
-    window.show()
-    sys.exit(app.exec())
+    generate_gtd_map()
+    sys.exit(0)  # Exit the script immediately, no GUI window is created

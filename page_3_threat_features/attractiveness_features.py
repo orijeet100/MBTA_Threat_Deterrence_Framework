@@ -11,10 +11,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.nn import GCNConv
 from numpy import genfromtxt
+
 from page_3_threat_features.GCN.gcn_lstm import GCN_LSTM
 from visualizer import generate_attractiveness_map, nodes_df, generate_overlay_singular_map
 
@@ -116,8 +114,85 @@ class AttractivenessFeaturesApp(QWidget):
         if map_html_path:
             self.browser.setHtml(open(map_html_path).read())
 
+    # def simulate_change(self):
+    #     """ Modifies the selected feature's value for the selected station and updates the temp dataset with GCN-LSTM predictions. """
+    #     time_of_day = self.time_of_day_dropdown.currentText()
+    #     station_name = self.station_dropdown.currentText()
+    #     feature = self.feature_dropdown.currentText()
+    #     new_value = self.feature_level_dropdown.currentText()
+    #
+    #     csv_file = f"Feature_Label_{time_of_day}.csv"
+    #     file_path = os.path.join(self.temp_folder, csv_file)
+    #
+    #     if not os.path.exists(file_path):
+    #         print(f"File not found: {file_path}")
+    #         return
+    #
+    #     # ✅ 1. Load the CSV and modify the selected station's feature
+    #     df = pd.read_csv(file_path)
+    #     df.loc[df["Station_Name"] == station_name, feature] = new_value
+    #     df.to_csv(file_path, index=False)  # Save the update
+    #
+    #     # ✅ 2. Load the GCN-LSTM Model
+    #     model_path = os.path.join(self.gcn_folder, "GCN_LSTM_weights.pth")
+    #     if not os.path.exists(model_path):
+    #         print("GCN-LSTM model weights not found!")
+    #         return
+    #
+    #     model = GCN_LSTM(input_dim=12, hidden_dim=64, output_dim=1, time_steps=9)
+    #     model.load_state_dict(torch.load(model_path))
+    #     model.eval()
+    #
+    #     # ✅ 3. Load Graph Structure
+    #     edge_index = np.genfromtxt(os.path.join(self.gcn_folder, "edge_index.csv"), delimiter=",", dtype=int)
+    #     edge_index = torch.tensor(edge_index.T, dtype=torch.long)  # Ensure correct shape
+    #
+    #     # ✅ 4. Extract Features for the Last 9 Time Windows
+    #     time_windows = [
+    #         "VERY_EARLY_MORNING", "EARLY_AM", "AM_PEAK", "MIDDAY_BASE",
+    #         "MIDDAY_SCHOOL", "PM_PEAK", "EVENING", "LATE_EVENING", "NIGHT"
+    #     ]
+    #
+    #     feature_tensors = []
+    #     for t in time_windows:
+    #         file_t = os.path.join(self.temp_folder, f"Feature_Label_{t}.csv")
+    #         if not os.path.exists(file_t):
+    #             print(f"Missing time window file: {file_t}")
+    #             return
+    #
+    #         df_t = pd.read_csv(file_t)
+    #         feature_values = df_t.set_index("Station_Name").loc[:, feature]  # Extract feature column
+    #         feature_tensors.append(torch.tensor(feature_values.values, dtype=torch.float32))
+    #
+    #     # ✅ 5. Stack the extracted features into a sequence
+    #     features_sequence = torch.stack(feature_tensors)  # Shape: [9, num_nodes]
+    #
+    #     # ✅ 6. Make Predictions
+    #     with torch.no_grad():
+    #         predicted_values = model(features_sequence.unsqueeze(0), edge_index)  # Add batch dimension
+    #         predicted_values = predicted_values.squeeze(0)  # Remove batch dim
+    #
+    #     # ✅ 7. Save Predictions to the Temp Playground
+    #     for i, t in enumerate(time_windows):
+    #         file_t = os.path.join(self.temp_folder, f"Feature_Label_{t}.csv")
+    #         df_t = pd.read_csv(file_t)
+    #         df_t.loc[df_t["Station_Name"] == station_name, feature] = predicted_values[i].item()
+    #         df_t.to_csv(file_t, index=False)
+    #
+    #     print(f"Updated predictions saved for {station_name} in all time windows.")
+    #
+    #     # ✅ 8. Refresh the Map with the New Data
+    #     self.update_map()
+
     def simulate_change(self):
-        """Updates the selected feature's value, runs GCN-LSTM, and updates Attractiveness scores."""
+        """ Modifies the selected feature's value for the selected station, runs the GCN-LSTM model,
+            and updates 'Attractiveness' in temp files for all 9 time windows. """
+
+        time_windows = [
+            "VERY_EARLY_MORNING", "EARLY_AM", "AM_PEAK", "MIDDAY_BASE",
+            "MIDDAY_SCHOOL", "PM_PEAK", "EVENING", "LATE_EVENING", "NIGHT"
+        ]
+
         time_of_day = self.time_of_day_dropdown.currentText()
         station_name = self.station_dropdown.currentText()
         feature = self.feature_dropdown.currentText()
@@ -127,114 +202,82 @@ class AttractivenessFeaturesApp(QWidget):
         file_path = os.path.join(self.temp_folder, csv_file)
 
         if not os.path.exists(file_path):
-            print(f"❌ File not found: {file_path}")
+            print(f"File not found: {file_path}")
             return
 
+        # 🔹 Step 1: Load the CSV file from temp_playground
         df = pd.read_csv(file_path)
+
+        # 🔹 Step 2: Apply the manual change
         df.loc[df["Station_Name"] == station_name, feature] = new_value
+
+        # 🔹 Step 3: Save the updated dataframe back to temp_playground
         df.to_csv(file_path, index=False)
 
-        print(f"✅ Updated {feature} for {station_name}. Running GCN-LSTM...")
+        # 🔹 Step 4: Reload the updated dataset before running the model
+        df = pd.read_csv(file_path)
 
-        # Pass required arguments to `run_gcn_lstm`
-        self.run_gcn_lstm(updated_station=station_name, updated_feature=feature, new_value=new_value,
-                          time_of_day=time_of_day)
+        # ✅ Load Edge Index
+        edge_index = np.genfromtxt(os.path.join(self.gcn_folder, "edge_index.csv"), delimiter=',', dtype=int)
+        # Ensure edge_index is a 2-row tensor (2, num_edges)
+        if edge_index.shape[0] != 2:
+            edge_index = edge_index.T  # Transpose if needed
 
-    def run_gcn_lstm(self, updated_station, updated_feature, new_value, time_of_day):
-        """
-        Runs the GCN-LSTM model after updating the latest time step's features.
-        Updates the `Attractiveness` scores in `temp_playground` and refreshes the map.
-        """
-        print(f"🔄 Running GCN-LSTM with updated {updated_feature} for {updated_station}...")
+        # Convert to PyTorch tensor (2, num_edges)
+        edge_index = torch.tensor(edge_index, dtype=torch.long)
 
-        # Define paths using self variables
+        # ✅ Load Original Features
+        features = []
+        for time in time_windows:
+            csv_path = os.path.join(self.temp_folder, f"Feature_Label_{time}.csv")
+            df = pd.read_csv(csv_path)
+
+            # Apply the change for the selected station and feature
+            df.loc[df["Station_Name"] == station_name, feature] = new_value
+
+            # Convert Threat_Level and Defense_Posture to One-Hot Encoding dynamically
+            categorical_features = ["Threat_Level", "Defense_Posture"]
+            df = pd.get_dummies(df, columns=categorical_features)
+
+            # Final selected features for prediction
+            all_feature_columns = [
+                                      "D_nearest_police", "D_nearest_fire", "D_nearest_hospital",
+                                      "Population_Density", "Average_Ridership", "Crime_Index"
+                                  ] + [col for col in df.columns if
+                                       "Threat_Level_" in col or "Defense_Posture_" in col]  # Dynamically get one-hot columns
+
+            # Ensure correct column order and convert to numeric
+            df = df[["ID"] + all_feature_columns].copy()
+            df[all_feature_columns] = df[all_feature_columns].astype(float)
+            df.sort_values(by="ID", inplace=True)  # Ensure consistent order
+            features.append(torch.tensor(df[all_feature_columns].values, dtype=torch.float32))
+
+        # ✅ Stack tensors to shape (9, num_nodes, num_features)
+        features_tensor = torch.stack(features)  # Shape: (9, num_nodes, num_features)
+
+        # ✅ Load Pretrained GCN-LSTM Model
         model_path = os.path.join(self.gcn_folder, "GCN_LSTM_weights.pth")
-        features_path = os.path.join(self.gcn_folder, "Original_Features.pth")
-        edge_index_path = os.path.join(self.gcn_folder, "edge_index.csv")
-
-        # Load the model
-        model = GCN_LSTM(input_dim=12, hidden_dim=64, output_dim=1, time_steps=9)
-        model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
+        model = GCN_LSTM(input_dim=features_tensor.shape[2], hidden_dim=64, output_dim=1, time_steps=9, gcn_dropout=0.5,
+                         lstm_dropout=0)
+        model.load_state_dict(torch.load(model_path, map_location=torch.device("cpu")))
         model.eval()
 
-        # Load node features (sequence of tensors)
-        features_seq = torch.load(features_path, map_location=torch.device('cpu'))  # List of 9 tensors
-        latest_features = features_seq[-1].clone()  # Work on the last time step tensor
-
-        # Load edge index
-        edge_index_np = pd.read_csv(edge_index_path, header=None).values
-        edge_index = torch.tensor(edge_index_np, dtype=torch.long).t().contiguous()
-
-        # Load temp playground CSV
-        csv_file = f"Feature_Label_{time_of_day}.csv"
-        file_path = os.path.join(self.temp_folder, csv_file)
-        df = pd.read_csv(file_path)
-
-        # Get node index for the selected station
-        station_idx = df.index[df["Station_Name"] == updated_station].tolist()
-        if not station_idx:
-            print(f"❌ Station {updated_station} not found in dataset.")
-            return
-        station_idx = station_idx[0]
-
-        # One-hot encoding for categorical features
-        if updated_feature in ["Threat_Level", "Defense_Posture"]:
-            one_hot_columns = {
-                "Threat_Level": ["Threat_Level_Low", "Threat_Level_Medium", "Threat_Level_High"],
-                "Defense_Posture": ["Defense_Posture_Low", "Defense_Posture_Medium", "Defense_Posture_High"]
-            }
-            # Reset other categories to 0
-            latest_features[station_idx, -3:] = 0
-            if updated_feature in one_hot_columns:
-                level_map = {"Low": 0, "Medium": 1, "High": 2}
-                latest_features[station_idx, -3 + level_map[new_value]] = 1  # Set the correct one-hot feature
-        else:
-            # Update numerical feature directly
-            feature_idx = {
-                "D_nearest_police": 0, "D_nearest_fire": 1, "D_nearest_hospital": 2,
-                "Population_Density": 3, "Average_Ridership": 4, "Crime_Index": 5
-            }
-            if updated_feature in feature_idx:
-                latest_features[station_idx, feature_idx[updated_feature]] = float(new_value)
-
-        # Update the last time step in the feature sequence
-        features_seq[-1] = latest_features
-
-        # Run model inference
+        # ✅ Run Predictions
         with torch.no_grad():
-            predictions = model(torch.stack(features_seq), edge_index)  # Output shape: [114, 9, 1]
+            attractiveness_predictions = model(features_tensor, edge_index)  # Shape: (9, num_nodes, 1)
 
-        # Extract final time step predictions
-        attractiveness_scores = predictions[:, -1, 0].numpy()
+        # ✅ Update Attractiveness in all CSV files
+        for i, time in enumerate(time_windows):
+            csv_path = os.path.join(self.temp_folder, f"Feature_Label_{time}.csv")
+            df = pd.read_csv(csv_path)
+            # Extract predictions for the correct time step
+            df["Attractiveness"] = attractiveness_predictions[:, i, 0].numpy()  # Extracts predictions for time step i
+            df.to_csv(csv_path, index=False)  # Save updated CSV
 
-        # Update temp playground CSV with new scores
-        df["Attractiveness"] = attractiveness_scores
-        df.to_csv(file_path, index=False)
+        print("Updated Attractiveness values for all time slots.")
 
-        print(f"✅ Updated Attractiveness scores in {file_path}")
-
-        # 🔄 **Refresh the map after updates**
+        # ✅ Refresh UI
         self.update_map()
-
-
-    def extract_features(self, file_path):
-        """Extracts 12 required features, applies one-hot encoding, and returns tensor."""
-        df = pd.read_csv(file_path)
-
-        # Features: 3 distances, 1 population density, 1 ridership, 1 crime index
-        feature_columns = [
-            "D_nearest_police", "D_nearest_fire", "D_nearest_hospital",
-            "Population_Density", "Average_Ridership", "Crime_Index"
-        ]
-
-        # One-hot encode Threat_Level & Defense_Posture
-        for category in ["Threat_Level", "Defense_Posture"]:
-            for level in ["High", "Medium", "Low"]:
-                column_name = f"{category}_{level}"
-                df[column_name] = (df[category] == level).astype(int)
-                feature_columns.append(column_name)
-
-        return torch.tensor(df[feature_columns].values, dtype=torch.float)
 
     def reset_temp_playground(self):
         """ Restores the temp playground to its original state. """
