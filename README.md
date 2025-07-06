@@ -1,4 +1,4 @@
-# Machine Intelligence for Threat Deterrence (MBTA GUI)
+# Machine Intelligence for Threat Deterrence (Boston MBTA)
 
 
 <a href="[[https://your-destination-link.com](https://www.linkedin.com/feed/update/urn:li:ugcPost:7345461036101124096](https://youtu.be/8ha87dDjb8E?si=A-APYuFNvJfKFziS))">
