@@ -2,7 +2,7 @@
 
 
 <a href="[[https://your-destination-link.com](https://www.linkedin.com/feed/update/urn:li:ugcPost:7345461036101124096](https://youtu.be/8ha87dDjb8E?si=A-APYuFNvJfKFziS))">
-  <img src="thumbnail" alt="Thumbnail" width="80%">
+  <img src="mbta_thumbnail.png" alt="Thumbnail" width="80%">
 </a>
 
 
