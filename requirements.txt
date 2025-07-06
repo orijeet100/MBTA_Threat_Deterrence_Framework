@@ -1,0 +1,14 @@
+PyQt5
+PyQt6
+folium
+matplotlib
+numpy
+pandas
+PyQtWebEngine
+PyQt6-WebEngine
+networkx
+branca
+scipy
+seaborn
+torch
+openpyxl

@@ -196,8 +196,11 @@
 #     window.show()
 #     sys.exit(app.exec())
 
+
+## Version 2|
+
 import sys
-from PyQt6.QtWidgets import QApplication, QPushButton, QWidget
+from PyQt6.QtWidgets import QApplication, QPushButton, QWidget, QLabel
 from PyQt6.QtGui import QPixmap, QPainter, QFont, QGuiApplication
 from PyQt6.QtCore import Qt
 
@@ -207,8 +210,149 @@ from page_3_threat_features.gtd_window import generate_gtd_map
 from page_3_threat_features.threat_features import ThreatFeaturesApp
 
 
+# class MainApp(QWidget):
+#     def __init__(self, image_path="info_logos/demo_front_page.png", image_scale=1.0):
+#         super().__init__()
+#         self.setWindowTitle("Machine Intelligence for Threat Deterrence")
+#
+#         # Load and Scale Background Image
+#         self.original_image = QPixmap(image_path)
+#         self.image_scale = image_scale
+#         self.background_image = self.original_image.scaled(
+#             int(self.original_image.width() * self.image_scale),
+#             int(self.original_image.height() * self.image_scale),
+#             Qt.AspectRatioMode.KeepAspectRatio,
+#             Qt.TransformationMode.SmoothTransformation
+#         )
+#
+#         # Set Window Size Based on Image
+#         self.window_width = self.background_image.width()
+#         self.window_height = self.background_image.height()
+#         self.setFixedSize(self.window_width, self.window_height)
+#
+#         # Center the window on the screen
+#         self.center_window()
+#
+#         # Button Sizes
+#         self.button_width = int(380 * self.image_scale/1.35)
+#         self.button_height = int(65 * self.image_scale/1.35)
+#         self.button_y = int(0.66 * self.window_height)  # 64% of the window height
+#
+#         # Calculate Equidistant X positions based on window width
+#         spacing = (self.window_width - (3 * self.button_width)) // 4  # 3 buttons, 4 gaps
+#         self.button_positions = {
+#             "gtd": (spacing, self.button_y),  # First button
+#             "threat": (2 * spacing + self.button_width, self.button_y),  # Middle button
+#             "attractiveness": (3 * spacing + 2 * self.button_width, self.button_y),  # Last button
+#         }
+#
+#         # Initialize Buttons
+#         self.init_buttons()
+#
+#     def center_window(self):
+#         """Centers the window on the screen using QScreen (PyQt6)."""
+#         screen = QGuiApplication.primaryScreen().geometry()
+#         x = (screen.width() - self.window_width) // 2
+#         y = (screen.height() - self.window_height) // 2 - 30
+#         self.move(x, y)
+#
+#     def init_buttons(self):
+#         """Creates and positions buttons with equal spacing."""
+#         self.gtd_button = self.create_button("Global Terrorism Data Visualization", self.button_positions["gtd"])
+#         self.threat_button = self.create_button("Urban Rail Network Data Analysis", self.button_positions["threat"])
+#         self.dynamic_node_button = self.create_button("Rail Station Attractiveness Prediction", self.button_positions["attractiveness"])
+#
+#         self.gtd_button.clicked.connect(self.open_gtd_maps)
+#         self.threat_button.clicked.connect(self.open_threat_features)
+#         self.dynamic_node_button.clicked.connect(self.open_attractiveness_features)
+#
+#     def create_button(self, text, position):
+#         """Creates a button with a specific position on the image."""
+#         button = QPushButton(text, self)
+#         button.setFont(QFont("Arial", int( 12 * self.image_scale)))
+#         button.setStyleSheet(f"""
+#             QPushButton {{
+#                 background-color: #0970c0;  /* Custom blue background */
+#                 color: white;
+#                 border-radius: 8px;
+#                 padding: 5px;
+#                 border: none;
+#             }}
+#             QPushButton:hover {{
+#                 background-color: #0760a8;  /* Slightly darker blue on hover */
+#             }}
+#             QPushButton:pressed {{
+#                 background-color: #06518f;  /* Even darker blue when pressed */
+#             }}
+#         """)
+#
+#         button.setFixedSize(self.button_width, self.button_height)
+#         button.move(*position)  # Set Button Position
+#         return button
+#
+#     def paintEvent(self, event):
+#         """Paints the background image centered within the window."""
+#         painter = QPainter(self)
+#         window_width = self.width()
+#         window_height = self.height()
+#
+#         img_width = self.background_image.width()
+#         img_height = self.background_image.height()
+#
+#         x_offset = (window_width - img_width) // 2
+#         y_offset = (window_height - img_height) // 2
+#
+#         # Fill the window with white first
+#         painter.fillRect(self.rect(), Qt.GlobalColor.white)
+#
+#         # Draw the centered image
+#         painter.drawPixmap(x_offset, y_offset, self.background_image)
+#
+#     def open_threat_features(self):
+#         """Opens the ThreatFeaturesApp widget."""
+#         self.threat_window = ThreatFeaturesApp()
+#         self.threat_window.show()
+#
+#     def open_attractiveness_features(self):
+#         """Opens the Attractiveness Features Window."""
+#         self.attractiveness_window = AttractivenessFeaturesApp()
+#         self.attractiveness_window.show()
+#
+#     def open_gtd_maps(self):
+#         """Opens a new window displaying two GTD maps: US and Global"""
+#         # self.gtd_window = GTDMapWindow()
+#         # self.gtd_window.show()
+#         generate_gtd_map()
+#
+#
+# if __name__ == "__main__":
+#     app = QApplication(sys.argv)
+#
+#     # Set your image path and scale factor (1.0 means original size, 0.8 means 80% size)
+#     image_path = "info_logos/demo_front_page.png"
+#     image_scale = 1  # Change this to reduce image size without losing quality
+#
+#     window = MainApp(image_path=image_path, image_scale=image_scale)
+#     window.show()
+#     sys.exit(app.exec())
+
+
+
+## Version 3
+
+
+import sys
+from PyQt6.QtWidgets import QApplication, QPushButton, QWidget
+from PyQt6.QtGui import QPixmap, QPainter, QFont, QGuiApplication
+from PyQt6.QtCore import Qt
+
+from page_3_threat_features.attractiveness_features import AttractivenessFeaturesApp
+from page_3_threat_features.gtd_window import generate_gtd_map
+from page_3_threat_features.threat_features import ThreatFeaturesApp
+
+
 class MainApp(QWidget):
-    def __init__(self, image_path="info_logos/demo_front_page.png", image_scale=1.0):
+    def __init__(self, image_path="info_logos/demo_front_page.png", image_scale=1.0, display_date="26-03-2025", date_x=0.9, date_y=0.5):
         super().__init__()
         self.setWindowTitle("Machine Intelligence for Threat Deterrence")
 
@@ -230,21 +374,12 @@ class MainApp(QWidget):
         # Center the window on the screen
         self.center_window()
 
-        # Button Sizes
-        self.button_width = int(380 * self.image_scale/1.35)
-        self.button_height = int(65 * self.image_scale/1.35)
-        self.button_y = int(0.66 * self.window_height)  # 64% of the window height
-
-        # Calculate Equidistant X positions based on window width
-        spacing = (self.window_width - (3 * self.button_width)) // 4  # 3 buttons, 4 gaps
-        self.button_positions = {
-            "gtd": (spacing, self.button_y),  # First button
-            "threat": (2 * spacing + self.button_width, self.button_y),  # Middle button
-            "attractiveness": (3 * spacing + 2 * self.button_width, self.button_y),  # Last button
-        }
 
         # Initialize Buttons
         self.init_buttons()
+
+        # Initialize Date Label
+        self.init_date_label(display_date, date_x, date_y)
 
     def center_window(self):
         """Centers the window on the screen using QScreen (PyQt6)."""
@@ -254,10 +389,32 @@ class MainApp(QWidget):
         self.move(x, y)
 
     def init_buttons(self):
-        """Creates and positions buttons with equal spacing."""
-        self.gtd_button = self.create_button("Global Terrorism Data Visualization", self.button_positions["gtd"])
-        self.threat_button = self.create_button("Urban Rail Network Data Analysis", self.button_positions["threat"])
-        self.dynamic_node_button = self.create_button("Rail Station Attractiveness Prediction", self.button_positions["attractiveness"])
+        """Creates and positions buttons vertically inside the defined box."""
+        # Define vertical box coordinates
+        box_left_x = 55
+        box_right_x = 325
+        box_top_y = 470
+        box_height = 220
+        # Button Sizes
+        self.button_width = int((box_right_x-box_left_x))
+        self.button_height = int(box_height*0.2)
+
+        # Compute vertical spacing
+        box_width = box_right_x - box_left_x
+        spacing = (box_height - (3 * self.button_height)) // 4
+
+        # X position centered in the box
+        button_x = box_left_x + (box_width - self.button_width) // 2
+
+        # Y positions for the 3 buttons
+        y1 = box_top_y + spacing
+        y2 = y1 + self.button_height + spacing
+        y3 = y2 + self.button_height + spacing
+
+        # Create buttons
+        self.gtd_button = self.create_button("Global Terrorism Data Visualization", (button_x, y1))
+        self.threat_button = self.create_button("Urban Rail Network Data Analysis", (button_x, y2))
+        self.dynamic_node_button = self.create_button("Rail Station Attractiveness Prediction", (button_x, y3))
 
         self.gtd_button.clicked.connect(self.open_gtd_maps)
         self.threat_button.clicked.connect(self.open_threat_features)
@@ -266,29 +423,28 @@ class MainApp(QWidget):
     def create_button(self, text, position):
         """Creates a button with a specific position on the image."""
         button = QPushButton(text, self)
-        button.setFont(QFont("Arial", int( 12 * self.image_scale)))
+        button.setFont(QFont("Arial", int(12 * self.image_scale)))
         button.setStyleSheet(f"""
             QPushButton {{
-                background-color: #0970c0;  /* Custom blue background */
+                background-color: #0970c0;
                 color: white;
                 border-radius: 8px;
                 padding: 5px;
                 border: none;
             }}
             QPushButton:hover {{
-                background-color: #0760a8;  /* Slightly darker blue on hover */
+                background-color: #0760a8;
             }}
             QPushButton:pressed {{
-                background-color: #06518f;  /* Even darker blue when pressed */
+                background-color: #06518f;
             }}
         """)
-
         button.setFixedSize(self.button_width, self.button_height)
-        button.move(*position)  # Set Button Position
+        button.move(*position)
         return button
 
     def paintEvent(self, event):
-        """Paints the background image centered within the window."""
+        """Paints the background image centered within the window and draws x/y ruler lines."""
         painter = QPainter(self)
         window_width = self.width()
         window_height = self.height()
@@ -299,39 +455,38 @@ class MainApp(QWidget):
         x_offset = (window_width - img_width) // 2
         y_offset = (window_height - img_height) // 2
 
-        # Fill the window with white first
         painter.fillRect(self.rect(), Qt.GlobalColor.white)
-
-        # Draw the centered image
         painter.drawPixmap(x_offset, y_offset, self.background_image)
 
+
     def open_threat_features(self):
-        """Opens the ThreatFeaturesApp widget."""
         self.threat_window = ThreatFeaturesApp()
         self.threat_window.show()
 
     def open_attractiveness_features(self):
-        """Opens the Attractiveness Features Window."""
         self.attractiveness_window = AttractivenessFeaturesApp()
         self.attractiveness_window.show()
 
     def open_gtd_maps(self):
-        """Opens a new window displaying two GTD maps: US and Global"""
-        # self.gtd_window = GTDMapWindow()
-        # self.gtd_window.show()
         generate_gtd_map()
+
+    def init_date_label(self, display_date, date_x, date_y):
+        self.date_label = QLabel(display_date, self)
+        self.date_label.setFont(QFont("Arial", int(14 * self.image_scale), QFont.Weight.Bold))
+        self.date_label.setStyleSheet("color: black;")
+        self.date_label.adjustSize()
+
+        # Set the position using relative coordinates
+        date_pos_x = int(self.window_width * date_x)
+        date_pos_y = int(self.window_height * date_y)
+        self.date_label.move(date_pos_x - self.date_label.width() // 2, date_pos_y - self.date_label.height() // 2)
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    image_path = "info_logos/demo_page.png"
+    image_scale = 1
 
-    # Set your image path and scale factor (1.0 means original size, 0.8 means 80% size)
-    image_path = "info_logos/demo_front_page.png"
-    image_scale = 1  # Change this to reduce image size without losing quality
-
-    window = MainApp(image_path=image_path, image_scale=image_scale)
+    window = MainApp(image_path=image_path, image_scale=image_scale, display_date="Proof-of-Concept Demonstration Version 1.0: April 2025", date_x=0.73, date_y=0.90)
     window.show()
     sys.exit(app.exec())
-
-
-

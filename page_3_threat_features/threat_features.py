@@ -16,13 +16,16 @@ crime_folder = "page_3_threat_features/Crime_Data"  # Folder for crime heatmap d
 #     for filename in os.listdir(threat_folder) if filename.endswith(".csv")
 # ]
 
-time_of_day_options = [
-    filename.replace("Feature_Label_", "").replace(".csv", "")
-    for filename in os.listdir(threat_folder) if filename.endswith(".csv")
-]
+# time_of_day_options = [
+#     filename.replace("Feature_Label_", "").replace(".csv", "")
+#     for filename in os.listdir(threat_folder) if filename.endswith(".csv")
+# ]
+
+time_of_day_options = ["VERY_EARLY_MORNING", "EARLY_AM", "AM_PEAK", "MIDDAY_BASE",
+            "MIDDAY_SCHOOL", "PM_PEAK", "EVENING", "LATE_EVENING", "NIGHT"]
 
 # Default Time of Day
-default_time = "EARLY_AM"
+default_time = "VERY_EARLY_MORNING"
 
 
 feature_columns = [
@@ -48,7 +51,7 @@ feature_display_mapping = {
 class ThreatFeaturesApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Threat Features of the Network")
+        self.setWindowTitle("Urban Rail Network Data Analysis")
         self.setGeometry(100, 40, 1200, 900)
 
         layout = QVBoxLayout()

@@ -44,7 +44,7 @@ def generate_gtd_map():
     world_top_attacks = world_attacks["attacktype1_txt"].value_counts().head(2)
 
     # Create the folium map with a simple base map
-    m = folium.Map(location=[20, 0], zoom_start=3, tiles="CartoDB positron")  # Faster, less detailed map
+    m = folium.Map(location=[20, 0], zoom_start=2, tiles="CartoDB positron")  # Faster, less detailed map
 
     # Add title
     title_html = """
@@ -53,12 +53,12 @@ def generate_gtd_map():
                 transform: translateX(-50%);
                 background-color: rgba(255, 255, 255, 0.9);
                 padding: 15px;
-                font-size: 27px;
+                font-size: 22px;
                 font-weight: bold;
                 text-align: center;
                 z-index:9999;
                 border-radius: 8px;">
-        Global Terrorist Attacks on Urban Rail
+        Global Terrorism Events at Rail Infrastructure Targets
     </div>
     """
     m.get_root().html.add_child(folium.Element(title_html))
@@ -97,7 +97,7 @@ def generate_gtd_map():
     stats_html = f"""
     <div style="position: fixed;
                 bottom: 20px; right: 10px;
-                width: 350px;
+                width: 270px;
                 background-color: rgba(255, 255, 255, 0.9);
                 z-index:9999; font-size:14px;
                 border-radius: 5px; padding: 10px;
@@ -111,13 +111,13 @@ def generate_gtd_map():
         {world_top_attacks.index[0]}: {world_top_attacks.iloc[0]} attacks<br>
         {world_top_attacks.index[1]}: {world_top_attacks.iloc[1]} attacks<br><br>
 
-        <b>Total Attacks:</b> {total_attacks}<br>
+        <b>Total Attacks:</b> {total_attacks} (1970-2021)<br>
         <b>Pre-9/11 Attacks (U.S.):</b> {pre_9_11_us}<br>
         <b>Post-9/11 Attacks (U.S.):</b> {post_9_11_us}<br>
         <b>Pre-9/11 Attacks (Global):</b> {pre_9_11_global}<br>
         <b>Post-9/11 Attacks (Global):</b> {post_9_11_global}<br>
-        <div style="font-style: italic; font-size: 12px; text-align: center; margin-top: 10px;">
-        Source: Global Terrorism Dataset
+        <div style="font-style: italic; font-size: 12px; text-align: left; margin-top: 10px;">
+        Source: Global Terrorism Dataset (https://www.start.umd.edu/data-tools/GTD)
     </div>
     </div>
     """

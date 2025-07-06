@@ -48,7 +48,7 @@ closeness_centrality = nx.closeness_centrality(G)
 
 
 def get_global_min_max(threat_folder, feature_columns):
-    categorical_features = ["Defense_Posture", "Threat_Level"]  # Define categorical features
+    categorical_features = ["Defense_Posture", "Threat_Level", "Basemap"]  # Define categorical features
     continuous_features = [f for f in feature_columns if f not in categorical_features]  # Exclude categorical features
 
     global_min = {}
@@ -115,7 +115,7 @@ centrality_columns = {
     "No Centrality": None,
     "Degree": "Degree_Centrality",
     "Betweenness": "Betweenness_Centrality",
-    "Eigen": "Eigen_Centrality",
+    "Eigen Vector": "Eigen_Centrality",
     "Closeness": "Closeness_Centrality",
     "Domirank": "Domirank_Centrality"  # Added Domirank centrality
 }
@@ -277,15 +277,33 @@ feature_descriptions = {
     "D_nearest_police_name": "Name of the nearest police station. Provided for informational purposes, not selectable for top K.",
     "D_nearest_fire_name": "Name of the nearest fire station. Provided for informational purposes, not selectable for top K.",
     "D_nearest_hospital_name": "Name of the nearest hospital. Provided for informational purposes, not selectable for top K.",
-    "Attractiveness": "Normalized Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)",
+    "Attractiveness": "Normalized composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)",
     "D_police_fire": "Normalized Weighted sum of distances to nearest police and fire departments to indicate the level of potential protective resources for the target rail station of interest."
 }
+
+feature_title = {
+    "Basemap": "Boston Urban Rail Basemap",
+    "D_nearest_police": "normalized distance to the nearest police department",
+    "D_nearest_fire": "normalized distance to the nearest fire department",
+    "D_nearest_hospital": "normalized distance to the nearest hospital.",
+    "Defense_Posture": "current security deployment.",
+    "Population_Density": "normalized population density in the surrounding area.",
+    "Average_Ridership": "normalized ridership during a certain period.",
+    "Crime_Index": "normalized value from historical crime concentration.",
+    "Threat_Level": "current threat condition.",
+    "D_nearest_police_name": "name of the nearest police department",
+    "D_nearest_fire_name": "name of the nearest fire department",
+    "D_nearest_hospital_name": "name of the nearest hospital.",
+    "Attractiveness": "normalized composite score from an adversarial perspective.",
+    "D_police_fire": "normalized composite sum of distances to nearest police/fire departments."
+}
+
 
 
 
 crime_folder = "page_3_threat_features/Crime_Data"
 
-# global_feature_min, global_feature_max = get_global_min_max(threat_folder, feature_columns)
+global_feature_min, global_feature_max = get_global_min_max(threat_folder, feature_columns)
 
 def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, active_layers=None, show_heatmap=False):
     """
@@ -321,9 +339,9 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
     is_categorical = selected_feature in ["Defense_Posture", "Threat_Level"]
 
     if not is_categorical:
-        min_val, max_val = merged_df[selected_feature].min(), merged_df[selected_feature].max()
-        # min_val = global_feature_min[selected_feature]
-        # max_val = global_feature_max[selected_feature]
+        # min_val, max_val = merged_df[selected_feature].min(), merged_df[selected_feature].max()
+        min_val = global_feature_min[selected_feature]
+        max_val = global_feature_max[selected_feature]
 
 
         median_val = merged_df[selected_feature].median()
@@ -510,7 +528,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
             legend_html = """
                     <div style="
                         position: fixed; 
-                        bottom: 50px; left: 50px; width: 150px; height: 100px; 
+                        bottom: 50px; left: 50px; width: 90px; height: 100px; 
                         background-color: white; z-index:9999; font-size:14px;
                         border-radius: 5px; padding: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
                         <b>Legend</b><br>
@@ -523,7 +541,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
             legend_html = """
             <div style="
                 position: fixed; 
-                bottom: 50px; left: 50px; width: 150px; height: 100px; 
+                bottom: 50px; left: 50px; width: 90px; height: 100px; 
                 background-color: white; z-index:9999; font-size:14px;
                 border-radius: 5px; padding: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
                 <b>Legend</b><br>
@@ -538,7 +556,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
 
 
-    elif colormap and selected_feature != "Attractiveness":
+    elif colormap :
 
         # HTML for top K nodes overlay layer
 
@@ -548,7 +566,7 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
         top_k_html = f"""
 
-        <div style="position: fixed; top: 50px; right: 50px; width: 230px; height: 250px; 
+        <div style="position: fixed; top: 20px; right: 20px; width: 230px; height: 250px; 
 
                     background-color: white; z-index:9999; font-size:14px;
 
@@ -573,22 +591,65 @@ def generate_threat_feature_map(time_of_day, selected_feature, top_k=None, activ
 
         mbta_map.get_root().html.add_child(folium.Element(top_k_html))
 
+    description_left = "175px" if is_categorical else "150px"
+
+    # description_html = f"""
+    # <div style="position: fixed;
+    #             bottom: 50px;
+    #             left: {description_left};  /* Positioned just to the right of the legend */
+    #             width: 300px;
+    #             background-color: white;
+    #             z-index:9999;
+    #             font-size:14px;
+    #             padding: 10px;
+    #             border-radius: 5px;
+    #             box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+    #      <strong>{selected_feature.replace('_', ' ').capitalize()}:</strong> {feature_descriptions[selected_feature]}
+
+    # </div>
+    # """
+
     description_html = f"""
+        <div style="position: fixed; 
+                    bottom: 50px; 
+                    left: {description_left};  /* Positioned just to the right of the legend */
+                    width: 300px; 
+                    background-color: white; 
+                    z-index:9999; 
+                    font-size:14px; 
+                    padding: 10px; 
+                    border-radius: 5px; 
+                    box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+                    {feature_descriptions[selected_feature]}
+        </div>
+        """
+
+    mbta_map.get_root().html.add_child(folium.Element(description_html))
+
+
+    # Get the appropriate title and description for the selected feature
+    raw_name = selected_feature.replace("_", " ").capitalize()
+    description = feature_title.get(selected_feature, "No description available.")
+
+    feature_title_html = f"""
     <div style="position: fixed; 
                 top: 10px; 
-                left: 10px; 
-                width: 300px; 
+                left: 60px; 
                 background-color: white; 
-                z-index:9999; 
-                font-size:14px; 
-                padding: 10px; 
-                border-radius: 5px; 
-                box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
-        <strong>{selected_feature.replace('_', ' ').capitalize()}:</strong> {feature_descriptions[selected_feature]}
+                color: black; 
+                padding: 10px 14px; 
+                font-weight: normal; 
+                font-size: 20px; 
+                border-radius: 6px; 
+                z-index: 9999; 
+                max-width: 500px;
+                box-shadow: 2px 2px 5px rgba(0,0,0,0.4);">
+        <b>{raw_name}:</b> {description}
     </div>
     """
 
-    mbta_map.get_root().html.add_child(folium.Element(description_html))
+    mbta_map.get_root().html.add_child(folium.Element(feature_title_html))
+
 
     # ✅ **Save the Final Map**
     map_path = os.path.join(output_folder, f"mbta_threat_{time_of_day}_{selected_feature}_top{top_k}.html")
@@ -684,17 +745,34 @@ def generate_basemap_feature(time_of_day,active_layers=None, show_heatmap=False)
     description_html = f"""
                 <div style="position: fixed; 
                             bottom: 30px; left: 50px; 
-                            width: 200px; background-color: rgba(255, 255, 255, 0.8); 
+                            width: 160px; background-color: rgba(255, 255, 255, 0.8); 
                             z-index:9999; font-size:14px; 
                             padding: 10px; border-radius: 5px; 
-                            text-align: center; box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
-                    <strong>Boston Urban Rail Attributes</strong><br>
+                            text-align: left ; box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
+                    <strong> Network Attributes</strong><br>
                     Total Nodes: {total_nodes}</strong><br>
                     Total Edges: {total_edges}</strong><br>
-                    4 Different Lines</strong>
+                    Rail Lines: 4</strong>
                 </div>
                 """
     mbta_map.get_root().html.add_child(folium.Element(description_html))
+
+    feature_title_html = f"""
+        <div style="position: fixed; 
+                    top: 10px; 
+                    left: 60px; 
+                    background-color: white; 
+                    color: black; 
+                    padding: 8px 14px; 
+                    font-weight: bold; 
+                    font-size: 20px; 
+                    border-radius: 5px; 
+                    z-index: 9999;">
+            Boston Urban Rail Basemap
+        </div>
+        """
+
+    mbta_map.get_root().html.add_child(folium.Element(feature_title_html))
 
     # ✅ Save the Basemap
     map_path = os.path.join(output_folder, "mbta_basemap.html")
@@ -772,19 +850,32 @@ def generate_attractiveness_map(time_of_day):
         ).add_to(mbta_map)
 
     # ✅ **Add Color Bar**
-    legend_html = f"""
-    <div style="position: fixed; bottom: 50px; left: 50px; width: 40px; height: 180px; background-color: rgba(255, 255, 255, 0.8); z-index:9999; font-size:12px; border: none; padding: 10px;">
-        <div style="height: 170px; width: 20px; background: linear-gradient(to top, green, yellow, red);"></div>
-        <div style="position: absolute; bottom: 0; left: 35px;">{min_val:.2f}</div>
-        <div style="position: absolute; top: 50%; left: 35px;">{median_val:.2f}</div>
-        <div style="position: absolute; top: 0; left: 35px;">{max_val:.2f}</div>
-    </div>
-    """
+        # Vertical color bar with labels for min, median, max values
+        legend_html = f"""
+            <div style="position: fixed; bottom: 50px; left: 50px; width: 60px; height: 200px; background-color: rgba(255, 255, 255, 0.8); 
+                        z-index:9999; font-size:12px; border: none; padding: 10px; text-align: center;">
+
+                <!-- Color Gradient Bar -->
+                <div style="height: 170px; width: 20px; background: linear-gradient(to top, green, yellow, red); margin: auto;"></div>
+
+                <!-- Min, Median, Max Values -->
+                <div style="position: absolute; bottom: 20px; left: 45px;">{min_val:.2f}</div>
+                <div style="position: absolute; top: 50%; left: 45px; transform: translateY(-50%);">{median_val:.2f}</div>
+                <div style="position: absolute; top: 0; left: 45px;">{max_val:.2f}</div>
+
+                <!-- Label for Normalized Values BELOW the bar -->
+                <div style="position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-weight: bold; font-size: 12px;">
+                    Normalized Values
+                </div>
+            </div>
+
+            """
     mbta_map.get_root().html.add_child(folium.Element(legend_html))
+
     description_html = f"""
         <div style="position: fixed; 
-                    top: 10px; 
-                    left: 10px; 
+                    bottom: 50px; 
+                    left: 130px;  /* Positioned just to the right of the legend */
                     width: 300px; 
                     background-color: white; 
                     z-index:9999; 
@@ -792,11 +883,30 @@ def generate_attractiveness_map(time_of_day):
                     padding: 10px; 
                     border-radius: 5px; 
                     box-shadow: 2px 2px 5px rgba(0,0,0,0.3);">
-             The stations are color-coded representing <strong> Attractiveness </strong>, which is a Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)
+                    Normalized Composite score based on multiple threat, defense, and network features to represent assumed adversarial preferences. (These scores may be updated based on subject matter expert inputs)
         </div>
         """
 
     mbta_map.get_root().html.add_child(folium.Element(description_html))
+
+    feature_title_html = f"""
+    <div style="position: fixed; 
+                top: 10px; 
+                left: 60px; 
+                background-color: white; 
+                color: black; 
+                padding: 10px 14px; 
+                font-weight: normal; 
+                font-size: 20px; 
+                border-radius: 6px; 
+                z-index: 9999; 
+                max-width: 500px;
+                box-shadow: 2px 2px 5px rgba(0,0,0,0.4);">
+        <b>Attractiveness:</b> normalized composite score from an adversarial perspective.
+    </div>
+    """
+
+    mbta_map.get_root().html.add_child(folium.Element(feature_title_html))
 
     # ✅ **Save the Final Map**
     if not os.path.exists(output_folder):

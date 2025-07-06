@@ -21,7 +21,7 @@ from visualizer import generate_attractiveness_map, nodes_df, generate_overlay_s
 class AttractivenessFeaturesApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Attractiveness & Threat Features")
+        self.setWindowTitle("Rail Station Attractiveness Prediction")
         self.setGeometry(100, 40, 1200, 800)
 
         # Create temp playground directory if not exists
@@ -42,15 +42,17 @@ class AttractivenessFeaturesApp(QWidget):
         layout = QVBoxLayout()
 
         # Load Available Time of Day from files
-        time_of_day_options = [
-            filename.replace("Feature_Label_", "").replace(".csv", "")
-            for filename in os.listdir(self.temp_folder) if filename.endswith(".csv")
-        ]
+        # time_of_day_options = [
+        #     filename.replace("Feature_Label_", "").replace(".csv", "")
+        #     for filename in os.listdir(self.temp_folder) if filename.endswith(".csv")
+        # ]
+        time_of_day_options = ["VERY_EARLY_MORNING", "EARLY_AM", "AM_PEAK", "MIDDAY_BASE",
+                               "MIDDAY_SCHOOL", "PM_PEAK", "EVENING", "LATE_EVENING", "NIGHT"]
 
         # Dropdown for Time of Day
         self.time_of_day_dropdown = QComboBox()
         self.time_of_day_dropdown.addItems(time_of_day_options)
-        self.time_of_day_dropdown.setCurrentText("EARLY_AM")  # Default
+        self.time_of_day_dropdown.setCurrentText("VERY_EARLY_MORNING")  # Default
         self.time_of_day_dropdown.currentTextChanged.connect(self.update_map)
 
         # Station Dropdown
