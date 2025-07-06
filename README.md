@@ -1,5 +1,11 @@
 # Machine Intelligence for Threat Deterrence (MBTA GUI)
 
+
+<a href="[[https://your-destination-link.com](https://www.linkedin.com/feed/update/urn:li:ugcPost:7345461036101124096](https://youtu.be/8ha87dDjb8E?si=A-APYuFNvJfKFziS))">
+  <img src="thumbnail" alt="Thumbnail" width="80%">
+</a>
+
+
 [![YouTube Demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/8ha87dDjb8E?si=A-APYuFNvJfKFziS)
 
 > **Click the YouTube badge above to watch the demo video!**
