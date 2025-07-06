@@ -150,14 +150,14 @@ MBTA_GUI/
 
 ## 👥 Team
 
+**Research Team:**
+- **Orijeet Mukherjee** - Graduate Researcher [Developer of this codebase]
+- **Dongqin Zhou** - Postdoctoral Researcher
+- **Soumyo Dey** - Postgraduate Researcher
+
 **Principal Investigators:**
 - **Auroop Ganguly** (PI and POC) - Northeastern University & Pacific Northwest National Laboratory
 - **Samrat Chatterjee** (Co-PI) - Pacific Northwest National Laboratory & Northeastern University
-
-**Research Team:**
-- **Dongqin Zhou** - Postdoctoral Researcher
-- **Orijeet Mukherjee** - Graduate Student
-- **Soumyo Dey** - Postgraduate Researcher
 
 ## 📄 Acknowledgments
 
